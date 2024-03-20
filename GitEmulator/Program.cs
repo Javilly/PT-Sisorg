@@ -7,6 +7,7 @@ namespace GitSimulation
     {
         static List<string> stagingArea = new List<string>();
         static List<Commit> commits = new List<Commit>();
+        static List<Commit> localCommits = new List<Commit>();
         private static Server server;
 
         static Dictionary<string, Action<string>> actions = new Dictionary<string, Action<string>>
@@ -23,7 +24,7 @@ namespace GitSimulation
         {
             server = new Server(); // Inicializar server dentro del método Main
 
-            List<Commit> commits = server.LoadCommits();
+            commits = server.LoadCommits();
 
             bool exit = false;
             while (!exit)
@@ -55,6 +56,14 @@ namespace GitSimulation
                 return;
             }
 
+            if (stagingArea.Contains(fileName))
+            {
+                Console.WriteLine(
+                    $"El archivo '{fileName}' ya ha sido agregado al área de preparación.\n"
+                );
+                return;
+            }
+
             stagingArea.Add(fileName);
             Console.WriteLine(
                 $"El archivo '{fileName}' ha sido agregado al área de preparación.\n"
@@ -75,7 +84,8 @@ namespace GitSimulation
                 return;
             }
 
-            Commit commit = new Commit(message, stagingArea.ToArray());
+            Commit commit = new Commit(message, stagingArea.ToArray(), true);
+            localCommits.Add(commit);
             commits.Add(commit);
             stagingArea.Clear();
             Console.WriteLine("Se ha realizado el commit con éxito.\n");
@@ -89,35 +99,53 @@ namespace GitSimulation
                 return;
             }
 
-            if (commits.Count == 0)
+            if (localCommits.Count == 0)
             {
                 Console.WriteLine("No hay commits para enviar al servidor remoto.\n");
                 return;
             }
 
-            server.SaveCommits(commits);
+            foreach (var commit in localCommits)
+            {
+                commit.SetIsLocal(false);
+            }
+            server.SaveCommits(localCommits);
+            localCommits.Clear();
+            commits = server.LoadCommits();
             Console.WriteLine("Los commits locales han sido enviados al servidor remoto.\n");
         }
 
         static void LogCommits(string parameter)
         {
-            if (!string.IsNullOrWhiteSpace(parameter))
-            {
-                Console.WriteLine("El comando 'log' no acepta parámetros adicionales.\n");
-                return;
-            }
-
             Console.WriteLine("Historial de commits:\n");
-            foreach (var commit in commits)
+            if (string.IsNullOrWhiteSpace(parameter) || parameter.ToLower() != "local")
             {
-                Console.WriteLine($"Commit: {commit.Message}");
-                Console.WriteLine($"Fecha: {commit.Date}");
-                Console.WriteLine("Archivos modificados:");
-                foreach (var file in commit.Files)
+                foreach (var commit in commits)
                 {
-                    Console.WriteLine($"- {file}");
+                    Console.WriteLine($"Commit: {commit.Message}");
+                    Console.WriteLine($"Fecha: {commit.Date}");
+                    Console.WriteLine($"Es local: {(commit.IsLocal ? "Si" : "No")}");
+                    Console.WriteLine("Archivos modificados:");
+                    foreach (var file in commit.Files)
+                    {
+                        Console.WriteLine($"- {file}");
+                    }
+                    Console.WriteLine();
                 }
-                Console.WriteLine();
+            }
+            else
+            {
+                foreach (var commit in localCommits)
+                {
+                    Console.WriteLine($"Commit: {commit.Message}");
+                    Console.WriteLine($"Fecha: {commit.Date}");
+                    Console.WriteLine("Archivos modificados:");
+                    foreach (var file in commit.Files)
+                    {
+                        Console.WriteLine($"- {file}");
+                    }
+                    Console.WriteLine();
+                }
             }
         }
 
@@ -131,7 +159,9 @@ namespace GitSimulation
                 "\tcommit <mensaje>: Realiza un nuevo commit con los archivos en el área de preparación.\n"
             );
             Console.WriteLine("\tpush: Envía los commits locales al servidor remoto.\n");
-            Console.WriteLine("\tlog: Muestra el historial de commits.\n");
+            Console.WriteLine(
+                "\tlog: Muestra el historial de commits (Parametro 'local' para mostrar solo los commits locales).\n"
+            );
             Console.WriteLine("\thelp: Muestra esta ayuda.\n");
             Console.WriteLine("\texit: Sale del programa.\n");
         }
@@ -139,20 +169,6 @@ namespace GitSimulation
         static void Exit(string parameter)
         {
             Environment.Exit(0);
-        }
-    }
-
-    class Commit
-    {
-        public string Message { get; }
-        public DateTime Date { get; }
-        public string[] Files { get; }
-
-        public Commit(string message, string[] files)
-        {
-            Message = message;
-            Date = DateTime.Now;
-            Files = files;
         }
     }
 }

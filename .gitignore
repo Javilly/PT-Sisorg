@@ -19,3 +19,5 @@ packages/
 *.log
 *.log.*
 *.tmp
+
+commits.json
