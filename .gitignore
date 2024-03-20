@@ -20,4 +20,4 @@ packages/
 *.log.*
 *.tmp
 
-commits.json
+server.json

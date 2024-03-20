@@ -6,7 +6,7 @@ namespace GitSimulation
     class Program
     {
         static List<string> stagingArea = new List<string>();
-        static List<Commit> commits = new List<Commit>();
+        static List<Commit> remoteCommits = new List<Commit>();
         static List<Commit> localCommits = new List<Commit>();
         private static Server server;
 
@@ -16,6 +16,8 @@ namespace GitSimulation
             { "commit", Commit },
             { "push", PushCommit },
             { "log", LogCommits },
+            { "pull", PullLatestCommit },
+            { "merge", Merge },
             { "help", Help },
             { "exit", Exit }
         };
@@ -24,7 +26,7 @@ namespace GitSimulation
         {
             server = new Server(); // Inicializar server dentro del método Main
 
-            commits = server.LoadCommits();
+            remoteCommits = server.LoadCommits();
 
             bool exit = false;
             while (!exit)
@@ -56,6 +58,17 @@ namespace GitSimulation
                 return;
             }
 
+            string repoDirectory = "repo";
+            string filePath = Path.Combine(repoDirectory, fileName);
+
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine(
+                    $"El archivo '{fileName}' no existe en la carpeta '{repoDirectory}'.\n"
+                );
+                return;
+            }
+
             if (stagingArea.Contains(fileName))
             {
                 Console.WriteLine(
@@ -84,11 +97,19 @@ namespace GitSimulation
                 return;
             }
 
-            Commit commit = new Commit(message, stagingArea.ToArray(), true);
+            Dictionary<string, string> filesContent = new Dictionary<string, string>();
+            foreach (var fileName in stagingArea)
+            {
+                string filePath = Path.Combine("repo", fileName);
+                string fileContent = File.ReadAllText(filePath);
+                filesContent.Add(fileName, fileContent);
+            }
+
+            Commit commit = new Commit(message, filesContent, true);
             localCommits.Add(commit);
-            commits.Add(commit);
             stagingArea.Clear();
             Console.WriteLine("Se ha realizado el commit con éxito.\n");
+            LogCommits("local");
         }
 
         static void PushCommit(string parameter)
@@ -111,7 +132,7 @@ namespace GitSimulation
             }
             server.SaveCommits(localCommits);
             localCommits.Clear();
-            commits = server.LoadCommits();
+            remoteCommits = server.LoadCommits();
             Console.WriteLine("Los commits locales han sido enviados al servidor remoto.\n");
         }
 
@@ -120,15 +141,27 @@ namespace GitSimulation
             Console.WriteLine("Historial de commits:\n");
             if (string.IsNullOrWhiteSpace(parameter) || parameter.ToLower() != "local")
             {
-                foreach (var commit in commits)
+                foreach (var commit in remoteCommits)
                 {
                     Console.WriteLine($"Commit: {commit.Message}");
                     Console.WriteLine($"Fecha: {commit.Date}");
                     Console.WriteLine($"Es local: {(commit.IsLocal ? "Si" : "No")}");
                     Console.WriteLine("Archivos modificados:");
-                    foreach (var file in commit.Files)
+                    foreach (var fileName in commit.Files.Keys)
                     {
-                        Console.WriteLine($"- {file}");
+                        Console.WriteLine($"- {fileName}");
+                    }
+                    Console.WriteLine();
+                }
+                foreach (var commit in localCommits)
+                {
+                    Console.WriteLine($"Commit: {commit.Message}");
+                    Console.WriteLine($"Fecha: {commit.Date}");
+                    Console.WriteLine($"Es local: {(commit.IsLocal ? "Si" : "No")}");
+                    Console.WriteLine("Archivos modificados:");
+                    foreach (var fileName in commit.Files.Keys)
+                    {
+                        Console.WriteLine($"- {fileName}");
                     }
                     Console.WriteLine();
                 }
@@ -140,9 +173,9 @@ namespace GitSimulation
                     Console.WriteLine($"Commit: {commit.Message}");
                     Console.WriteLine($"Fecha: {commit.Date}");
                     Console.WriteLine("Archivos modificados:");
-                    foreach (var file in commit.Files)
+                    foreach (var fileName in commit.Files.Keys)
                     {
-                        Console.WriteLine($"- {file}");
+                        Console.WriteLine($"- {fileName}");
                     }
                     Console.WriteLine();
                 }
@@ -169,6 +202,68 @@ namespace GitSimulation
         static void Exit(string parameter)
         {
             Environment.Exit(0);
+        }
+
+        static void PullLatestCommit(string parameter)
+        {
+            Commit latestRemoteCommit = remoteCommits.LastOrDefault();
+            Commit latestLocalCommit = localCommits.LastOrDefault();
+
+            if (
+                latestRemoteCommit != null
+                && (latestLocalCommit == null || latestRemoteCommit.Date > latestLocalCommit.Date)
+            )
+            {
+                Console.WriteLine("Hay nuevos commits remotos. Actualizando archivos...");
+                Dictionary<string, string> filesToUpdate = latestRemoteCommit.Files;
+                UpdateRepo(filesToUpdate, false);
+                Console.WriteLine("Archivos actualizados correctamente.");
+            }
+            else
+            {
+                Console.WriteLine("No hay nuevos commits remotos para extraer.");
+            }
+        }
+
+        static void Merge(string parameter)
+        {
+            Commit latestRemoteCommit = remoteCommits.LastOrDefault();
+
+            if (latestRemoteCommit != null)
+            {
+                Dictionary<string, string> filesToUpdate = latestRemoteCommit.Files;
+                UpdateRepo(filesToUpdate, true);
+                Console.WriteLine("Merge realizado con éxito.");
+            }
+            else
+            {
+                Console.WriteLine("No se encontró ningún commit remoto para realizar el merge.");
+            }
+        }
+
+        static void UpdateRepo(Dictionary<string, string> filesToUpdate, bool isMerge)
+        {
+            string repoPath = @"repo";
+
+            foreach (var kvp in filesToUpdate)
+            {
+                string fileName = kvp.Key;
+                string fileContent = kvp.Value;
+
+                string filePath = Path.Combine(repoPath, fileName);
+
+                if (isMerge)
+                {
+                    File.WriteAllText(filePath, fileContent);
+                }
+                else
+                {
+                    if (!File.Exists(filePath))
+                    {
+                        File.WriteAllText(filePath, fileContent);
+                    }
+                }
+            }
         }
     }
 }

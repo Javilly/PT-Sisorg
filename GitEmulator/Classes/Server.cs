@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 
 public class Server
 {
-    private const string dataFilePath = "commits.json";
+    private const string dataFilePath = "server.json";
 
     public List<Commit> LoadCommits()
     {
