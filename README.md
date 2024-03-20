@@ -1,11 +1,13 @@
-### Instalación
+### Instalación y Build
 
 1. Clonar el repositorio.
-2. Ejecutar `dotnet build`
+2. En la terminal ir a la carpeta `GitEmulator`
+3. Ejecutar `dotnet build`
 
 ### Ejecución
 
-1. Ejecutar `dotnet run`
+1. En la terminal ir a la carpeta `GitEmulator`
+2. Ejecutar `dotnet run`
 
 ### Testeo
 
