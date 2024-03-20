@@ -18,20 +18,23 @@ namespace GitSimulation
             { "log", LogCommits },
             { "pull", PullLatestCommit },
             { "merge", Merge },
+            { "revert", Revert },
             { "help", Help },
             { "exit", Exit }
         };
 
         static void Main(string[] args)
         {
-            server = new Server(); // Inicializar server dentro del método Main
+            server = new Server();
 
             remoteCommits = server.LoadCommits();
 
             bool exit = false;
             while (!exit)
             {
-                Console.WriteLine("Ingrese un comando (add, commit, push, log, help, exit):");
+                Console.WriteLine(
+                    "Ingrese un comando (add, commit, push, pull, merge, revert, log, help, exit):"
+                );
                 string? input = Console.ReadLine();
                 string[] parts = input?.Split(' ', 2) ?? new string[] { "", "" }; // Dividir el input o enviar string vacíos
                 string commandName = parts[0].Trim();
@@ -193,6 +196,13 @@ namespace GitSimulation
             );
             Console.WriteLine("\tpush: Envía los commits locales al servidor remoto.\n");
             Console.WriteLine(
+                "\tpull: Trae todos los cambios del último commit remoto sin sobreescribir archivos locales.\n"
+            );
+            Console.WriteLine(
+                "\tmerge: Trae todos los cambios del último commit remoto sobreescribiendo archivos locales.\n"
+            );
+            Console.WriteLine("\trevert: Borra el último commit local.\n");
+            Console.WriteLine(
                 "\tlog: Muestra el historial de commits (Parametro 'local' para mostrar solo los commits locales).\n"
             );
             Console.WriteLine("\thelp: Muestra esta ayuda.\n");
@@ -244,6 +254,10 @@ namespace GitSimulation
         static void UpdateRepo(Dictionary<string, string> filesToUpdate, bool isMerge)
         {
             string repoPath = @"repo";
+            if (!Directory.Exists(repoPath))
+            {
+                Directory.CreateDirectory(repoPath);
+            }
 
             foreach (var kvp in filesToUpdate)
             {
@@ -263,6 +277,22 @@ namespace GitSimulation
                         File.WriteAllText(filePath, fileContent);
                     }
                 }
+            }
+        }
+
+        static void Revert(string parameter)
+        {
+            if (localCommits.Count > 0)
+            {
+                Commit lastLocalCommit = localCommits[localCommits.Count - 1];
+                localCommits.RemoveAt(localCommits.Count - 1);
+                Console.WriteLine(
+                    $"Se ha revertido el último commit local: {lastLocalCommit.Message}"
+                );
+            }
+            else
+            {
+                Console.WriteLine("No hay commits locales para revertir.");
             }
         }
     }
